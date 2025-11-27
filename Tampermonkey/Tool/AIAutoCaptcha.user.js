@@ -49,9 +49,15 @@
             gemini: { baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models', apiKey: '', model: 'gemini-1.5-flash' },
             qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', apiKey: '', model: 'qwen-vl-max' },
             selectors: [
+                // 直接匹配img标签属性
                 'img[src*="captcha"]', 'img[src*="verify"]', 'img[src*="code"]', 'img[id*="code"]', 'img[id*="Code"]',
                 'img[class*="captcha"]', 'img[class*="code"]', 'img[alt*="captcha"]', 'img[id="authImage"]',
-                'img[src*="validate"]', 'img[src*="random"]'
+                'img[src*="validate"]', 'img[src*="random"]',
+                // 通过父元素class匹配（支持 <div class="captcha"><img></div> 结构）
+                '.captcha img', '.captcha-img img', '.verify img', '.verify-code img', '.verification img',
+                '[class*="captcha"] img', '[class*="verify"] img', '[class*="code-img"] img', '[class*="yzm"] img',
+                // 通过父元素id匹配
+                '#captcha img', '#verify img', '#code img', '#authCode img', '#verifyCode img'
             ]
         };
         #config;
@@ -59,8 +65,20 @@
         #load() {
             try {
                 const stored = GM_getValue('ai_captcha_config_v3');
-                this.#config = stored ? { ...this.#defaultConfig, ...JSON.parse(stored) } : this.#defaultConfig;
-            } catch (e) { this.#config = this.#defaultConfig; }
+                if (stored) {
+                    const oldConfig = JSON.parse(stored);
+                    // 保留API配置，但强制使用新的选择器
+                    this.#config = {
+                        ...this.#defaultConfig,
+                        ...oldConfig,
+                        selectors: this.#defaultConfig.selectors  // 强制使用新选择器
+                    };
+                } else {
+                    this.#config = this.#defaultConfig;
+                }
+            } catch (e) {
+                this.#config = this.#defaultConfig;
+            }
         }
         get all() { return this.#config; }
         save(newConfig) {
